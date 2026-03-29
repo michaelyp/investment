@@ -506,38 +506,34 @@ async function doRefresh() {
         "anthropic-dangerous-direct-browser-access": "true"
       },
       body: JSON.stringify({
-        // 1. Using Claude 3.5 Haiku: The cheapest model that supports tools/JSON
         model: "claude-3-5-haiku-20241022",
-        max_tokens: 512,
-        // 2. NEW: Forces the model to return ONLY valid JSON (Structured Output)
-        output_config: { format: "json_schema", json_schema: { "type": "object" } }, 
+        max_tokens: 500,
+        system: "You are a financial data assistant. Always respond with valid JSON only.", // Added System Prompt
         messages: [
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: `Return current prices for ${tickers}, ENB.TO annual dividend, QQQ 6-month drawdown %, and SPY 50-day MA status (BULL/BEAR).`,
-                // 3. Prompt Caching: Reduces cost of instructions on subsequent clicks
-                cache_control: { type: "ephemeral" }
+                text: `Fetch prices for: ${tickers}. Also ENB.TO dividend, QQQ drawdown %, and SPY 50-day MA status.`,
+                cache_control: { type: "ephemeral" } // Keeps costs low
               }
             ]
+          },
+          {
+            role: "assistant",
+            content: "{" // "Pre-filling" the brace forces a JSON response
           }
         ],
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }]
+        tools: [{ type: "web_search_20250305", name: "web_search" }]
       })
     });
 
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error?.message || "API error " + res.status);
-    }
-
     const data = await res.json();
-    // With Structured Output, the JSON is directly in the text field
-    const p = JSON.parse(data.content[0].text);
+    // Concatenate the pre-filled "{" with the rest of the response
+    const fullJson = "{" + data.content[0].text; 
+    const p = JSON.parse(fullJson);
 
-    // Update state and UI
     PORTFOLIO = PORTFOLIO.map(s => ({
       ...s,
       price: p.prices?.[s.ticker] ?? s.price,
@@ -549,10 +545,8 @@ async function doRefresh() {
 
     document.getElementById("lastUpd").textContent = "Live data · updated " + new Date().toLocaleTimeString("en-CA");
     renderAll();
-
   } catch (e) {
     document.getElementById("lastUpd").textContent = "Refresh failed: " + e.message;
-    console.error("Parse Error Detail:", e);
   } finally {
     btn.textContent = "↻ Refresh live data"; btn.disabled = false;
   }
