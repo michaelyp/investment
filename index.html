@@ -506,7 +506,7 @@ async function doRefresh() {
         "anthropic-dangerous-direct-browser-access": "true"
       },
       body: JSON.stringify({
-        // 1. Updated to the active 2026 Haiku model ID
+        // 1. Updated to active 2026 model ID
         model: "claude-haiku-4-5-20251001", 
         max_tokens: 600,
         system: "You are a financial data assistant. Always respond with valid JSON only.",
@@ -516,18 +516,19 @@ async function doRefresh() {
             content: [
               {
                 type: "text",
-                text: `Fetch prices for: ${tickers}. ENB.TO dividend, QQQ drawdown %, SPY 50-day MA status.`,
+                text: `Fetch current prices for: ${tickers}. Also find ENB.TO annual dividend, QQQ 6-month drawdown %, and if SPY is above its 50-day MA (BULL/BEAR).`,
+                // 2. Prompt Caching: Reduces cost of subsequent refreshes by ~90%
                 cache_control: { type: "ephemeral" } 
               }
             ]
           },
           {
             role: "assistant",
-            content: "{" 
+            content: "{" // 3. Pre-fill forces a clean JSON output start
           }
         ],
-        // 2. Using the current 2026 search tool version
-        tools: [{ type: "web_search_20260115", name: "web_search" }] 
+        // 4. Updated to the active Tool ID from your error log
+        tools: [{ type: "web_search_20260209", name: "web_search" }] 
       })
     });
 
@@ -537,11 +538,15 @@ async function doRefresh() {
     }
 
     const data = await res.json();
+    
+    // Look for the generated text block (it might not be at index 0 if tool logs exist)
     const textBlock = data.content.find(c => c.type === "text");
-    if (!textBlock) throw new Error("No text response received");
+    if (!textBlock) throw new Error("No data returned from API");
 
+    // Pre-fill "{" + the rest of the response = Valid JSON
     const p = JSON.parse("{" + textBlock.text);
 
+    // Update Dashboard State
     PORTFOLIO = PORTFOLIO.map(s => ({
       ...s,
       price: p.prices?.[s.ticker] ?? s.price,
@@ -555,6 +560,7 @@ async function doRefresh() {
     renderAll();
   } catch (e) {
     document.getElementById("lastUpd").textContent = "Refresh failed: " + e.message;
+    console.error("API Detail:", e);
   } finally {
     btn.textContent = "↻ Refresh live data"; btn.disabled = false;
   }
