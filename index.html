@@ -506,7 +506,8 @@ async function doRefresh() {
         "anthropic-dangerous-direct-browser-access": "true"
       },
       body: JSON.stringify({
-        model: "claude-3-5-haiku-20241022",
+        // 1. Updated to the active 2026 Haiku model ID
+        model: "claude-haiku-4-5-20251001", 
         max_tokens: 600,
         system: "You are a financial data assistant. Always respond with valid JSON only.",
         messages: [
@@ -515,17 +516,18 @@ async function doRefresh() {
             content: [
               {
                 type: "text",
-                text: `Fetch current prices for: ${tickers}. Also find ENB.TO annual dividend, QQQ 6-month drawdown %, and if SPY is above 50-day MA (BULL/BEAR).`,
+                text: `Fetch prices for: ${tickers}. ENB.TO dividend, QQQ drawdown %, SPY 50-day MA status.`,
                 cache_control: { type: "ephemeral" } 
               }
             ]
           },
           {
             role: "assistant",
-            content: "{" // Pre-fill to force JSON
+            content: "{" 
           }
         ],
-        tools: [{ type: "web_search_20250305", name: "web_search" }]
+        // 2. Using the current 2026 search tool version
+        tools: [{ type: "web_search_20260115", name: "web_search" }] 
       })
     });
 
@@ -535,16 +537,11 @@ async function doRefresh() {
     }
 
     const data = await res.json();
-    
-    // FIX: Look specifically for the 'text' block, as index 0 might be a 'tool_use' block
     const textBlock = data.content.find(c => c.type === "text");
-    if (!textBlock) throw new Error("No text response received from API");
+    if (!textBlock) throw new Error("No text response received");
 
-    // Combine the pre-filled brace with the generated text
-    const fullJson = "{" + textBlock.text; 
-    const p = JSON.parse(fullJson);
+    const p = JSON.parse("{" + textBlock.text);
 
-    // Update your dashboard state
     PORTFOLIO = PORTFOLIO.map(s => ({
       ...s,
       price: p.prices?.[s.ticker] ?? s.price,
@@ -557,7 +554,6 @@ async function doRefresh() {
     document.getElementById("lastUpd").textContent = "Live data · updated " + new Date().toLocaleTimeString("en-CA");
     renderAll();
   } catch (e) {
-    console.error("Refresh Error:", e);
     document.getElementById("lastUpd").textContent = "Refresh failed: " + e.message;
   } finally {
     btn.textContent = "↻ Refresh live data"; btn.disabled = false;
