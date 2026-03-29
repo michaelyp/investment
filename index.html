@@ -403,30 +403,91 @@ function showEmail(){
   document.getElementById("emailSection").scrollIntoView({behavior:"smooth"});
 }
 
+// async function doRefresh(){
+//   if(!apiKey){openKeyModal();return;}
+//   const btn=document.getElementById("rfBtn");
+//   btn.textContent="Fetching...";btn.disabled=true;
+//   try{
+//     const tickers=PORTFOLIO.map(p=>p.ticker).join(", ");
+//     const prompt=`Search for the current market prices of these securities: ${tickers}. Also find: ENB.TO annual dividend TTM, QQQ current drawdown from its 6-month high as a negative percentage (e.g. -3.5), and whether SPY is currently above its 50-day moving average (reply "BULL" or "BEAR"). Reply with ONLY valid JSON and nothing else:\n{"prices":{"ENB.TO":72.5,"RY.TO":175,"FTS.TO":60,"NVDA":120,"MSFT":415,"GOOGL":185},"enb_annual_dividend":3.77,"nasdaq_drawdown_pct":-3.2,"regime":"BULL"}`;
+//     const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,tools:[{type:"web_search_20250305",name:"web_search"}],messages:[{role:"user",content:prompt}]})});
+//     if(!res.ok){const err=await res.json();throw new Error(err.error?.message||"API error "+res.status);}
+//     const data=await res.json();
+//     const txt=data.content.filter(c=>c.type==="text").map(c=>c.text).join("");
+//     const match=txt.match(/\{[\s\S]*?\}/);
+//     if(match){
+//       const p=JSON.parse(match[0]);
+//       PORTFOLIO=PORTFOLIO.map(s=>({...s,price:p.prices?.[s.ticker]??s.price,...(s.ticker==="ENB.TO"&&p.enb_annual_dividend?{enbDiv:p.enb_annual_dividend}:{})}));
+//       if(p.nasdaq_drawdown_pct!==undefined)nqDraw=p.nasdaq_drawdown_pct;
+//       if(p.regime)regime=p.regime;
+//       document.getElementById("lastUpd").textContent="Live data · updated "+new Date().toLocaleTimeString("en-CA");
+//       renderAll();
+//     }
+//   }catch(e){document.getElementById("lastUpd").textContent="Refresh failed: "+e.message;}
+//   btn.textContent="↻ Refresh live data";btn.disabled=false;
+// }
+
 async function doRefresh(){
   if(!apiKey){openKeyModal();return;}
   const btn=document.getElementById("rfBtn");
   btn.textContent="Fetching...";btn.disabled=true;
   try{
-    const tickers=PORTFOLIO.map(p=>p.ticker).join(", ");
-    const prompt=`Search for the current market prices of these securities: ${tickers}. Also find: ENB.TO annual dividend TTM, QQQ current drawdown from its 6-month high as a negative percentage (e.g. -3.5), and whether SPY is currently above its 50-day moving average (reply "BULL" or "BEAR"). Reply with ONLY valid JSON and nothing else:\n{"prices":{"ENB.TO":72.5,"RY.TO":175,"FTS.TO":60,"NVDA":120,"MSFT":415,"GOOGL":185},"enb_annual_dividend":3.77,"nasdaq_drawdown_pct":-3.2,"regime":"BULL"}`;
-    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,tools:[{type:"web_search_20250305",name:"web_search"}],messages:[{role:"user",content:prompt}]})});
+    const tickers = PORTFOLIO.map(p => p.ticker).join(", ");
+    
+    // Optimized prompt with a caching breakpoint
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        // 1. Switched to Claude 3.5 Haiku for significantly lower per-token costs
+        model: "claude-3-5-haiku-20241022", 
+        max_tokens: 500, // 2. Lowered max_tokens to prevent expensive over-generation
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Search for current prices for: ${tickers}. Also find ENB.TO annual dividend, QQQ 6-month drawdown %, and if SPY is above its 50-day MA (BULL/BEAR). Format as JSON only.`,
+                // 3. Added Prompt Caching breakpoint
+                // This makes subsequent refreshes up to 90% cheaper.
+                cache_control: {"type": "ephemeral"} 
+              }
+            ]
+          }
+        ],
+        // 4. Using the specific web search tool as defined in your original code
+        tools: [{type: "web_search_20250305", name: "web_search"}]
+      })
+    });
+
     if(!res.ok){const err=await res.json();throw new Error(err.error?.message||"API error "+res.status);}
     const data=await res.json();
     const txt=data.content.filter(c=>c.type==="text").map(c=>c.text).join("");
     const match=txt.match(/\{[\s\S]*?\}/);
+    
     if(match){
       const p=JSON.parse(match[0]);
-      PORTFOLIO=PORTFOLIO.map(s=>({...s,price:p.prices?.[s.ticker]??s.price,...(s.ticker==="ENB.TO"&&p.enb_annual_dividend?{enbDiv:p.enb_annual_dividend}:{})}));
+      PORTFOLIO=PORTFOLIO.map(s=>({
+        ...s,
+        price:p.prices?.[s.ticker]??s.price,
+        ...(s.ticker==="ENB.TO"&&p.enb_annual_dividend?{enbDiv:p.enb_annual_dividend}:{})
+      }));
       if(p.nasdaq_drawdown_pct!==undefined)nqDraw=p.nasdaq_drawdown_pct;
       if(p.regime)regime=p.regime;
       document.getElementById("lastUpd").textContent="Live data · updated "+new Date().toLocaleTimeString("en-CA");
       renderAll();
     }
-  }catch(e){document.getElementById("lastUpd").textContent="Refresh failed: "+e.message;}
+  } catch(e) {
+    document.getElementById("lastUpd").textContent="Refresh failed: "+e.message;
+  }
   btn.textContent="↻ Refresh live data";btn.disabled=false;
 }
-
 function openKeyModal(){document.getElementById("keyModal").style.display="flex";}
 function closeKeyModal(){document.getElementById("keyModal").style.display="none";}
 function saveKey(){
