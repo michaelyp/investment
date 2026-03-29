@@ -1,0 +1,25 @@
+name: Daily Investment Check
+
+on:
+  schedule:
+    - cron: '0 13 * * *' # Executes daily at 9:00 AM Toronto time (13:00 UTC)
+  workflow_dispatch: # Allows manual run
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: pip install yfinance
+      - name: Run automated bot
+        env:
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }} # Google App Password secret
+          EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
+        run: python daily_bot.py

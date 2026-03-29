@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0f11;--bg2:#141618;--bg3:#1c1f22;--border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);--text:#f0f0ee;--text2:#9a9a96;--text3:#5c5c58;--green:#22c55e;--green2:rgba(34,197,94,0.12);--red:#ef4444;--red2:rgba(239,68,68,0.12);--amber:#f59e0b;--amber2:rgba(245,158,11,0.12);--blue:#60a5fa;--blue2:rgba(96,165,250,0.12);--teal:#2dd4bf;--radius:10px;--mono:'IBM Plex Mono',monospace;--sans:'DM Sans',sans-serif}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
+.app{display:flex;min-height:100vh}
+.sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);padding:24px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100}
+.main{margin-left:220px;flex:1;padding:28px 32px;max-width:1200px}
+.logo{padding:0 20px 24px;border-bottom:1px solid var(--border)}
+.logo h1{font-size:12px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--text2)}
+.logo span{font-size:18px;font-weight:300;display:block;color:var(--text);margin-top:2px}
+.nav{padding:16px 0;flex:1}
+.nav-btn{display:flex;align-items:center;gap:10px;width:100%;padding:9px 20px;background:none;border:none;cursor:pointer;font-size:13px;font-family:var(--sans);color:var(--text2);text-align:left;transition:all 0.15s;border-left:2px solid transparent}
+.nav-btn:hover{color:var(--text);background:rgba(255,255,255,0.03)}
+.nav-btn.active{color:var(--text);border-left-color:var(--teal);background:rgba(45,212,191,0.06)}
+.nav-btn svg{width:15px;height:15px;flex-shrink:0}
+.sb-footer{padding:16px 20px;border-top:1px solid var(--border)}
+.api-status{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--red)}
+.dot.ok{background:var(--green)}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;flex-wrap:wrap;gap:16px}
+.header-left h2{font-size:22px;font-weight:300}
+.header-left p{font-size:12px;color:var(--text2);margin-top:4px;font-family:var(--mono)}
+.header-right{display:flex;gap:8px;flex-wrap:wrap}
+.btn{padding:8px 16px;border-radius:7px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:12px;font-family:var(--sans);cursor:pointer;transition:all 0.15s}
+.btn:hover{border-color:rgba(255,255,255,0.25);background:rgba(255,255,255,0.06)}
+.btn.primary{background:var(--teal);border-color:var(--teal);color:#0d0f11;font-weight:500}
+.btn.primary:hover{background:#26bfae}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.panel{display:none}.panel.active{display:block}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+.card-title{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:14px}
+.mcard{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.mcard-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.07em}
+.mcard-val{font-size:22px;font-weight:300;font-family:var(--mono);margin:6px 0 3px}
+.mcard-sub{font-size:11px;color:var(--text2)}
+.pos{color:var(--green)}.neg{color:var(--red)}.neu{color:var(--amber)}.inf{color:var(--blue)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:8px 12px;text-align:left;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:0.06em;font-size:11px;border-bottom:1px solid var(--border)}
+td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text)}
+tr:hover td{background:rgba(255,255,255,0.02)}
+.mono{font-family:var(--mono)}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:500;letter-spacing:0.05em}
+.badge-tfsa{background:rgba(34,197,94,0.15);color:var(--green)}
+.badge-rrsp{background:var(--blue2);color:var(--blue)}
+.badge-taxable{background:var(--amber2);color:var(--amber)}
+.sig-sb{color:var(--green);font-weight:500;font-family:var(--mono);font-size:11px}
+.sig-b{color:#86efac;font-family:var(--mono);font-size:11px}
+.sig-h{color:var(--amber);font-family:var(--mono);font-size:11px}
+.sig-r{color:var(--red);font-family:var(--mono);font-size:11px}
+.zone{border:1px solid var(--border);border-radius:8px;padding:12px;transition:border 0.2s}
+.zone.current{border-color:var(--teal);background:rgba(45,212,191,0.06)}
+.irow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.irow:last-child{border-bottom:none}
+.irow-label{color:var(--text2)}
+.irow-val{font-family:var(--mono);font-weight:500}
+.tax-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:7px;margin-bottom:6px;font-size:12px}
+.tax-ok{background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2)}
+.tax-warn{background:var(--red2);border:1px solid rgba(239,68,68,0.25)}
+.astep{display:flex;gap:14px;padding:11px 0;border-bottom:1px solid var(--border)}
+.astep-day{min-width:80px;font-size:11px;font-family:var(--mono);color:var(--teal);padding-top:2px}
+.astep-title{font-size:13px;font-weight:500}
+.astep-sub{font-size:11px;color:var(--text2);margin-top:3px;line-height:1.5}
+.chart-wrap{position:relative;width:100%}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:28px;width:100%;max-width:460px}
+.modal h3{font-size:16px;font-weight:400;margin-bottom:6px}
+.modal p{font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6}
+.modal input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:10px 14px;font-size:13px;font-family:var(--mono);color:var(--text);outline:none}
+.modal input:focus{border-color:var(--teal)}
+.modal-footer{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.modal-warn{font-size:11px;color:var(--amber);background:var(--amber2);border:1px solid rgba(245,158,11,0.25);border-radius:6px;padding:8px 12px;margin-bottom:14px;line-height:1.5}
+.email-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;font-family:var(--mono);font-size:12px;color:var(--text2);white-space:pre-wrap;line-height:1.7;max-height:400px;overflow-y:auto}
+@media(max-width:900px){.sidebar{width:0;overflow:hidden}.main{margin-left:0;padding:20px 16px}.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.g2,.g3,.g4{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+<nav class="sidebar">
+  <div class="logo"><h1>Portfolio</h1><span>Dashboard</span></div>
+  <div class="nav">
+    <button class="nav-btn active" onclick="sw('overview',this)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>Overview</button>
+    <button class="nav-btn" onclick="sw('portfolio',this)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12V6l6-4 6 4v6"/><rect x="5" y="8" width="6" height="4" rx="0.5"/></svg>Portfolio</button>
+    <button class="nav-btn" onclick="sw('signals',this)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="1,11 5,7 8,9 11,4 15,6"/></svg>Signals</button>
+    <button class="nav-btn" onclick="sw('gic',this)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1.5"/><path d="M5 3v10M11 3v10M1 8h14"/></svg>GIC Income</button>
+    <button class="nav-btn" onclick="sw('tax',this)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h10l1 4H2L3 2z"/><rect x="2" y="6" width="12" height="8" rx="1"/><path d="M6 10h4"/></svg>Tax Optimization</button>
+    <button class="nav-btn" onclick="sw('action',this)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h8M2 12h5"/><circle cx="13" cy="11" r="2.5"/><path d="M13 9.5v1.5l1 1"/></svg>Action Plan</button>
+  </div>
+  <div class="sb-footer">
+    <div class="api-status"><div class="dot" id="apiDot"></div><span id="apiStatusText">API key not set</span></div>
+    <button class="btn" style="margin-top:10px;width:100%;font-size:11px" onclick="openKeyModal()">Set Anthropic API key</button>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="header">
+    <div class="header-left">
+      <h2>Investment Dashboard</h2>
+      <p id="lastUpd">Sample data — set your API key and press Refresh for live prices</p>
+    </div>
+    <div class="header-right">
+      <button class="btn" onclick="showEmail()">Email preview</button>
+      <button class="btn primary" id="rfBtn" onclick="doRefresh()">&#8635; Refresh live data</button>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div id="pov" class="panel active">
+    <div class="g4" id="kpis" style="margin-bottom:16px"></div>
+    <div class="g2">
+      <div class="card"><div class="card-title">Asset allocation</div><div id="aleg" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;font-size:11px;color:var(--text2)"></div><div class="chart-wrap" style="height:200px"><canvas id="aChart"></canvas></div></div>
+      <div class="card"><div class="card-title">Signal summary</div><div id="sigList"></div></div>
+    </div>
+  </div>
+
+  <!-- PORTFOLIO -->
+  <div id="ppf" class="panel">
+    <div class="card" style="margin-bottom:14px"><div class="card-title">Stock holdings — live P&amp;L</div><div class="tbl-wrap"><table id="holdTbl"></table></div></div>
+    <div class="g2">
+      <div class="card"><div class="card-title">GIC — $300K monthly payout</div><div id="gicSumA"></div></div>
+      <div class="card"><div class="card-title">GIC — $200K 3-year compound</div><div id="gicSumB"></div></div>
+    </div>
+  </div>
+
+  <!-- SIGNALS -->
+  <div id="psig" class="panel">
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">ENB — yield-based entry zones</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:14px">You buy Enbridge based on dividend yield, not price. Higher yield = cheaper relative to income = better entry.</p>
+      <div class="g4" id="enbZones" style="margin-bottom:12px"></div>
+      <div id="enbNow" style="font-size:13px;padding:10px 14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)"></div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">Nasdaq drawdown → tech buy triggers</div>
+      <div id="nqZones" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:12px 0"></div>
+      <p id="nqNow" style="font-size:12px;color:var(--text2);margin-top:8px;font-family:var(--mono)"></p>
+    </div>
+    <div class="card">
+      <div class="card-title">AI momentum scores</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Scores combine 1M/3M momentum, volatility penalty, and market regime. Bull adds +1, Bear subtracts −1.</p>
+      <div id="sleg" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;font-size:11px;color:var(--text2)"></div>
+      <div class="chart-wrap" style="height:200px"><canvas id="sChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- GIC -->
+  <div id="pgic" class="panel">
+    <div class="g2" id="gCards" style="margin-bottom:14px"></div>
+    <div class="card" style="margin-bottom:14px"><div class="card-title">Best available GIC rates</div><div class="tbl-wrap"><table id="gicTbl"></table></div></div>
+    <div class="card">
+      <div class="card-title">Monthly payout vs compound — the math</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6">Your original insight: put $300K in a 2-year monthly payout GIC (3.54%), then reinvest each monthly payout into a 1-year GIC. If Bank of Canada raises rates, each reinvestment earns more — eventually beating a standard 2-year compound.</p>
+      <div id="gicMath"></div>
+    </div>
+  </div>
+
+  <!-- TAX -->
+  <div id="ptax" class="panel">
+    <div class="g3" id="accCards" style="margin-bottom:14px"></div>
+    <div class="card" style="margin-bottom:14px"><div class="card-title">Holdings — tax placement review</div><div id="taxRev"></div></div>
+    <div class="card"><div class="card-title">Key Canadian tax rules</div><div id="taxRules" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px"></div></div>
+  </div>
+
+  <!-- ACTION -->
+  <div id="pact" class="panel">
+    <div class="g3" id="actSum" style="margin-bottom:14px"></div>
+    <div class="card" style="margin-bottom:14px"><div class="card-title">Monthly execution cycle</div><div id="mPlan"></div></div>
+    <div id="taxActAlert"></div>
+    <div id="emailSection" style="display:none;margin-top:14px">
+      <div class="card">
+        <div class="card-title">Daily email preview</div>
+        <div class="email-box" id="emailTxt"></div>
+        <button class="btn" onclick="document.getElementById('emailSection').style.display='none'" style="margin-top:12px;font-size:11px">Close</button>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- API Key Modal -->
+<div class="modal-bg" id="keyModal" style="display:none">
+  <div class="modal">
+    <h3>Anthropic API key</h3>
+    <p>Your key is stored in memory only — never saved to disk or sent anywhere except Anthropic's API for live price lookups. Get a free key at <a href="https://console.anthropic.com" target="_blank" style="color:var(--teal)">console.anthropic.com</a>.</p>
+    <div class="modal-warn">&#9888; Never commit your API key to GitHub. This key lives in browser memory only and is cleared when you close the tab.</div>
+    <input type="password" id="keyInput" placeholder="sk-ant-..." />
+    <div class="modal-footer">
+      <button class="btn" onclick="closeKeyModal()">Cancel</button>
+      <button class="btn primary" onclick="saveKey()">Save key</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+// EDIT YOUR PORTFOLIO HERE
+// ═══════════════════════════════════════════════════════════
+let PORTFOLIO = [
+  { ticker:"ENB.TO", name:"Enbridge",    shares:3000, cost:65.0,  price:72.00, acct:"TFSA",    type:"div",  sect:"Energy",    enbDiv:3.77 },
+  { ticker:"RY.TO",  name:"Royal Bank",  shares:500,  cost:130.0, price:175.00,acct:"Taxable", type:"div",  sect:"Banks" },
+  { ticker:"FTS.TO", name:"Fortis",      shares:1000, cost:55.0,  price:60.00, acct:"TFSA",    type:"div",  sect:"Utilities" },
+  { ticker:"NVDA",   name:"NVIDIA",      shares:400,  cost:80.0,  price:120.00,acct:"RRSP",    type:"grow", sect:"US Tech" },
+  { ticker:"MSFT",   name:"Microsoft",   shares:200,  cost:380.0, price:415.00,acct:"RRSP",    type:"grow", sect:"US Tech" },
+  { ticker:"GOOGL",  name:"Alphabet",    shares:300,  cost:160.0, price:185.00,acct:"RRSP",    type:"grow", sect:"US Tech" },
+];
+const GIC = [
+  { lbl:"2-Year monthly payout", amt:300000, rate:3.54, tp:"m" },
+  { lbl:"3-Year compound",       amt:200000, rate:3.72, tp:"c" },
+];
+// ═══════════════════════════════════════════════════════════
+
+let nqDraw=-3.2, regime="BULL", apiKey="";
+let aCI=null, sCI=null;
+
+function getSig(p){
+  if(p.ticker==="ENB.TO"){
+    const y=((p.enbDiv||3.77)/p.price)*100;
+    if(y>=7.0)return{sig:"STRONG BUY",sc:4,cls:"sig-sb",yld:y};
+    if(y>=6.5)return{sig:"BUY LARGE", sc:3,cls:"sig-sb",yld:y};
+    if(y>=5.8)return{sig:"BUY MEDIUM",sc:2,cls:"sig-b", yld:y};
+    if(y>=5.2)return{sig:"SMALL BUY", sc:1,cls:"sig-b", yld:y};
+    return{sig:"HOLD",sc:0,cls:"sig-h",yld:y};
+  }
+  let sc=0;
+  const roi=(p.price-p.cost)/p.cost;
+  sc+=roi>0.15?1:roi<-0.1?-1:0;
+  sc+=regime==="BULL"?1:-1;
+  if(["NVDA","MSFT","GOOGL","AMZN","META"].includes(p.ticker)){
+    if(nqDraw<=-15)sc+=2;
+    else if(nqDraw<=-10)sc+=1;
+    else if(nqDraw>-3)sc-=1;
+  }
+  if(sc>=3)return{sig:"STRONG BUY",sc,cls:"sig-sb"};
+  if(sc>=1)return{sig:"BUY",sc,cls:"sig-b"};
+  if(sc===0)return{sig:"HOLD",sc,cls:"sig-h"};
+  return{sig:"REDUCE",sc,cls:"sig-r"};
+}
+function getTax(p){
+  const ca=p.ticker.endsWith(".TO");
+  if(ca&&p.acct==="RRSP")   return{ok:false,msg:"Move to TFSA/Taxable — Canadian dividends get tax credit; RRSP negates it"};
+  if(!ca&&p.acct!=="RRSP")  return{ok:false,msg:"Move to RRSP — avoids 15% US dividend withholding tax (treaty)"};
+  if(ca&&p.acct==="TFSA")   return{ok:true, msg:"Optimal — dividends and gains grow completely tax-free"};
+  if(!ca&&p.acct==="RRSP")  return{ok:true, msg:"Optimal — RRSP treaty eliminates US withholding tax"};
+  if(ca&&p.acct==="Taxable")return{ok:true, msg:"Good — Canadian dividends qualify for the dividend tax credit"};
+  return{ok:true,msg:"Acceptable placement"};
+}
+function compute(){
+  const gicTot=GIC.reduce((s,g)=>s+g.amt,0);
+  const gicInc=(GIC[0].amt*GIC[0].rate/100)/12;
+  const en=PORTFOLIO.map(p=>{
+    const sig=getSig(p),tax=getTax(p);
+    const val=p.price*p.shares,cb=p.cost*p.shares,pr=val-cb;
+    return{...p,...sig,tax,val,cb,pr,pct:pr/cb*100};
+  });
+  const tv=en.reduce((s,p)=>s+p.val,0)+gicTot;
+  const tc=en.reduce((s,p)=>s+p.cb,0);
+  const tp=en.reduce((s,p)=>s+p.pr,0);
+  return{en,tv,tc,tp,gicTot,gicInc};
+}
+const fmt=n=>Math.round(n).toLocaleString("en-CA");
+const fmtd=n=>n.toFixed(2);
+function irow(l,v,c){return`<div class="irow"><span class="irow-label">${l}</span><span class="irow-val${c?" "+c:""}">${v}</span></div>`;}
+
+function renderAll(){
+  const d=compute();
+  rKPIs(d);rAllocChart(d);rSigList(d);
+  rHold(d);rGicSum(d);
+  rEnbZones(d);rNqZones();rSigChart(d);
+  rGicPanel(d);rTaxPanel(d);rAction(d);
+}
+
+function rKPIs(d){
+  const pct=(d.tp/d.tc*100).toFixed(1);
+  document.getElementById("kpis").innerHTML=[
+    {l:"Total portfolio",    v:"$"+fmt(d.tv),                              s:"incl. GIC + equities",                    c:""},
+    {l:"Total profit",       v:(d.tp>=0?"+":"-")+"$"+fmt(Math.abs(d.tp)), s:pct+"% overall return",                    c:d.tp>=0?"pos":"neg"},
+    {l:"Monthly GIC income", v:"$"+Math.round(d.gicInc),                  s:"$300K @ 3.54% monthly payout",            c:"inf"},
+    {l:"Market regime",      v:regime,                                     s:"Nasdaq: "+nqDraw.toFixed(1)+"% from 6M high",c:regime==="BULL"?"pos":"neg"},
+  ].map(k=>`<div class="mcard"><div class="mcard-label">${k.l}</div><div class="mcard-val${k.c?" "+k.c:""}">${k.v}</div><div class="mcard-sub">${k.s}</div></div>`).join("");
+}
+
+function rAllocChart(d){
+  const mp={"GIC Payout":GIC[0].amt,"GIC Compound":GIC[1].amt};
+  d.en.forEach(p=>{mp[p.sect]=(mp[p.sect]||0)+p.val;});
+  const labs=Object.keys(mp),vals=Object.values(mp);
+  const clrs=["#2dd4bf","#60a5fa","#22c55e","#f59e0b","#a78bfa","#fb923c","#f472b6","#34d399"];
+  document.getElementById("aleg").innerHTML=labs.map((l,i)=>`<span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:${clrs[i%clrs.length]}"></span>${l}</span>`).join("");
+  const ctx=document.getElementById("aChart");
+  if(aCI)aCI.destroy();
+  aCI=new Chart(ctx,{type:"doughnut",data:{labels:labs,datasets:[{data:vals,backgroundColor:clrs,borderWidth:0,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,cutout:"62%",plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>" $"+fmt(c.raw)}}}}});
+}
+
+function rSigList(d){
+  document.getElementById("sigList").innerHTML=d.en.map(p=>
+    `<div class="irow"><div style="display:flex;align-items:center;gap:8px"><span style="font-weight:500">${p.ticker}</span><span class="badge badge-${p.acct.toLowerCase().replace(/\s/,"")}">${p.acct}</span></div><span class="${p.cls}">${p.sig}</span></div>`
+  ).join("");
+}
+
+function rHold(d){
+  document.getElementById("holdTbl").innerHTML=
+    `<thead><tr>${["Ticker","Name","Shares","Avg cost","Price","Value","Profit $","Return %","Account","Signal"].map(h=>`<th>${h}</th>`).join("")}</tr></thead>`+
+    `<tbody>${d.en.map(p=>`<tr><td class="mono" style="font-weight:500">${p.ticker}</td><td style="color:var(--text2)">${p.name}</td><td class="mono">${p.shares.toLocaleString()}</td><td class="mono">$${fmtd(p.cost)}</td><td class="mono inf">$${fmtd(p.price)}</td><td class="mono" style="font-weight:500">$${fmt(p.val)}</td><td class="mono ${p.pr>=0?"pos":"neg"}">${p.pr>=0?"+":"-"}$${fmt(Math.abs(p.pr))}</td><td class="mono ${p.pct>=0?"pos":"neg"}">${p.pct>=0?"+":""}${p.pct.toFixed(1)}%</td><td><span class="badge badge-${p.acct.toLowerCase().replace(/\s/,"")}">${p.acct}</span></td><td class="${p.cls}">${p.sig}</td></tr>`).join("")}</tbody>`;
+}
+
+function rGicSum(d){
+  const g0=GIC[0],mo=g0.amt*g0.rate/100/12,an=g0.amt*g0.rate/100;
+  document.getElementById("gicSumA").innerHTML=irow("Principal","$"+fmt(g0.amt))+irow("Rate",g0.rate+"%","pos")+irow("Monthly income","$"+Math.round(mo),"inf")+irow("Annual income","$"+fmt(an),"pos")+irow("2-yr total interest","$"+fmt(an*2),"pos")+`<p style="font-size:11px;color:var(--text2);margin-top:10px;line-height:1.5;padding:8px;background:var(--bg3);border-radius:6px">Reinvest each $${Math.round(mo)} payout into a 1-year GIC. As rates rise, each reinvestment earns more.</p>`;
+  const g1=GIC[1],y1=g1.amt*Math.pow(1+g1.rate/100,1),y2=g1.amt*Math.pow(1+g1.rate/100,2),y3=g1.amt*Math.pow(1+g1.rate/100,3);
+  document.getElementById("gicSumB").innerHTML=irow("Principal","$"+fmt(g1.amt))+irow("Rate",g1.rate+"% compound","pos")+irow("Year 1 value","$"+fmt(Math.round(y1)),"inf")+irow("Year 2 value","$"+fmt(Math.round(y2)),"inf")+irow("Year 3 value","$"+fmt(Math.round(y3)),"inf")+irow("Total gain","$"+fmt(Math.round(y3-g1.amt)),"pos");
+}
+
+function rEnbZones(d){
+  const enb=d.en.find(p=>p.ticker==="ENB.TO"),y=enb?enb.yld:5.24;
+  const zones=[
+    {l:"Zone 1 — Fair value",   pr:"$70–73",yl:"5.2–5.5%",act:"Small buy $10–20K",   on:y<5.8},
+    {l:"Zone 2 — Good value",   pr:"$65–68",yl:"5.8–6.2%",act:"Buy $25–40K",          on:y>=5.8&&y<6.5},
+    {l:"Zone 3 — Strong buy",   pr:"$60–63",yl:"6.5–7.0%",act:"Buy $40–60K",          on:y>=6.5&&y<7.0},
+    {l:"Zone 4 — Deploy all in",pr:"< $58", yl:"> 7.0%",  act:"All remaining capital", on:y>=7.0},
+  ];
+  document.getElementById("enbZones").innerHTML=zones.map(z=>
+    `<div class="zone${z.on?" current":""}"><div style="font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em">${z.l}</div><div style="font-size:14px;font-weight:500;font-family:var(--mono);color:var(--teal)">${z.yl}</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Price: ${z.pr}</div><div style="font-size:11px;color:var(--text2);margin-top:4px">→ ${z.act}</div>${z.on?`<div style="font-size:10px;color:var(--teal);margin-top:6px;font-weight:500">◄ Current zone</div>`:""}</div>`
+  ).join("");
+  if(enb)document.getElementById("enbNow").innerHTML=`<span style="color:var(--text2)">ENB price:</span> <strong class="mono">$${fmtd(enb.price)}</strong> &nbsp;·&nbsp; <span style="color:var(--text2)">Annual dividend:</span> <strong class="mono">$${(enb.enbDiv||3.77).toFixed(2)}</strong> &nbsp;·&nbsp; <span style="color:var(--text2)">Yield:</span> <strong class="mono ${enb.cls}">${enb.yld.toFixed(2)}%</strong> &nbsp;·&nbsp; <span class="${enb.cls}" style="font-weight:500">${enb.sig}</span>`;
+}
+
+function rNqZones(){
+  const zones=[{r:"0 to −5%",s:"Hold",on:nqDraw>-5},{r:"−5%",s:"Buy 20%",on:nqDraw<=-5&&nqDraw>-10},{r:"−10%",s:"Buy 30%",on:nqDraw<=-10&&nqDraw>-15},{r:"−15%",s:"Buy 30%",on:nqDraw<=-15&&nqDraw>-20},{r:"−20%+",s:"All in",on:nqDraw<=-20}];
+  document.getElementById("nqZones").innerHTML=zones.map(z=>`<div style="text-align:center;padding:10px 6px;border-radius:8px;border:${z.on?"1.5px solid var(--teal);background:rgba(45,212,191,0.08)":"1px solid var(--border)"}"><div style="font-size:12px;font-weight:500;font-family:var(--mono)">${z.r}</div><div style="font-size:11px;color:var(--text2);margin-top:4px">${z.s}</div>${z.on?`<div style="font-size:10px;color:var(--teal);margin-top:5px;font-weight:500">◄ Now</div>`:""}</div>`).join("");
+  document.getElementById("nqNow").textContent=`Drawdown from 6-month high: ${nqDraw.toFixed(1)}%  ·  Market regime: ${regime}`;
+}
+
+function rSigChart(d){
+  const cmap={"STRONG BUY":"#22c55e","BUY LARGE":"#22c55e","BUY MEDIUM":"#86efac","SMALL BUY":"#86efac","BUY":"#86efac","HOLD":"#f59e0b","REDUCE":"#ef4444"};
+  document.getElementById("sleg").innerHTML=[{l:"Strong buy",c:"#22c55e"},{l:"Buy / Small buy",c:"#86efac"},{l:"Hold",c:"#f59e0b"},{l:"Reduce",c:"#ef4444"}].map(x=>`<span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:${x.c}"></span>${x.l}</span>`).join("");
+  const ctx=document.getElementById("sChart");
+  if(sCI)sCI.destroy();
+  sCI=new Chart(ctx,{type:"bar",data:{labels:d.en.map(p=>p.ticker),datasets:[{data:d.en.map(p=>p.sc),backgroundColor:d.en.map(p=>cmap[p.sig]||"#f59e0b"),borderRadius:4,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`Score: ${c.raw} — ${d.en[c.dataIndex].sig}`}}},scales:{y:{min:-2,max:5,grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#5c5c58",font:{size:11}}},x:{grid:{display:false},ticks:{color:"#5c5c58",font:{size:11}}}}}});
+}
+
+function rGicPanel(d){
+  const g0=GIC[0],mo=g0.amt*g0.rate/100/12,an=g0.amt*g0.rate/100;
+  const g1=GIC[1],y3=g1.amt*Math.pow(1+g1.rate/100,3);
+  document.getElementById("gCards").innerHTML=[
+    {title:"Monthly payout engine",v:"$"+Math.round(mo)+"/mo",sub:"$300K × 3.54% ÷ 12",extra:"$"+fmt(an)+" annual · reinvest each payment"},
+    {title:"3-year compound gain", v:"$"+fmt(Math.round(y3-g1.amt)),sub:"$200K @ 3.72% compound",extra:"Total at maturity: $"+fmt(Math.round(y3))},
+  ].map(c=>`<div class="mcard"><div class="mcard-label">${c.title}</div><div class="mcard-val inf">${c.v}</div><div class="mcard-sub">${c.sub}</div><div style="font-size:11px;color:var(--teal);margin-top:4px">${c.extra}</div></div>`).join("");
+  document.getElementById("gicTbl").innerHTML=`<thead><tr><th>Term</th><th>Best rate</th><th>Institution</th><th>Strategy</th></tr></thead><tbody>${[["1 year","3.21%","TD MTG / CDA TR","Flexibility — reinvest monthly payouts here"],["2 year","3.54%","TD PAC MTG / HomeEquity Bank","Monthly payout engine ✓"],["3 year","3.72%","TD MTG / CDA TR","Compound anchor ✓"],["4 year","3.73%","TD MTG / TD PAC MTG","Marginal upgrade over 3Y"],["5 year","3.87%","TD PAC MTG / CDA TR","Max yield but locked in"]].map(r=>`<tr><td style="font-weight:500">${r[0]}</td><td class="mono pos">${r[1]}</td><td style="color:var(--text2)">${r[2]}</td><td style="font-size:11px;color:var(--text2)">${r[3]}</td></tr>`).join("")}</tbody>`;
+  const baseComp=300000*Math.pow(1.0354,2),mo2=300000*0.0354/12,fvR=mo2*((Math.pow(1+0.0321/12,24)-1)/(0.0321/12)),totR=300000+fvR;
+  document.getElementById("gicMath").innerHTML=`<div class="g2"><div style="padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)"><div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em">Option A — 2-year compound</div><div class="mono" style="font-size:18px;color:var(--text)">$${fmt(Math.round(baseComp))}</div><div style="font-size:11px;color:var(--text2);margin-top:4px">Profit: +$${fmt(Math.round(baseComp-300000))}</div></div><div style="padding:12px;background:rgba(45,212,191,0.06);border-radius:8px;border:1.5px solid var(--teal)"><div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em">Option B — Monthly + reinvest ✓</div><div class="mono" style="font-size:18px;color:var(--teal)">$${fmt(Math.round(totR))}</div><div style="font-size:11px;color:var(--teal);margin-top:4px">Advantage: +$${fmt(Math.round(totR-baseComp))} (grows as rates rise)</div></div></div>`;
+}
+
+function rTaxPanel(d){
+  document.getElementById("accCards").innerHTML=[
+    {n:"TFSA",c:"var(--green)", best:["Canadian dividends (tax-free growth)","High-growth Canadian equities","GIC interest (completely tax-free)"]},
+    {n:"RRSP",c:"var(--blue)",  best:["US stocks (15% withholding tax eliminated)","GIC interest (tax-deferred)","High-income years deferral"]},
+    {n:"Taxable",c:"var(--amber)",best:["Canadian dividends (tax credit applies)","Capital gains (50% inclusion rate)","When TFSA/RRSP room is exhausted"]},
+  ].map(a=>`<div class="card"><div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-weight:500;font-size:13px;margin-bottom:10px;color:${a.c}">${a.n[0]}</div><div style="font-size:15px;font-weight:500;margin-bottom:10px">${a.n}</div>${a.best.map(b=>`<p style="font-size:11px;color:var(--text2);margin-bottom:4px;line-height:1.5">· ${b}</p>`).join("")}</div>`).join("");
+  document.getElementById("taxRev").innerHTML=d.en.map(p=>`<div class="tax-row ${p.tax.ok?"tax-ok":"tax-warn"}"><div><span style="font-weight:500">${p.ticker}</span><span class="badge badge-${p.acct.toLowerCase().replace(/\s/,"")}" style="margin-left:8px">${p.acct}</span></div><div style="font-size:11px;text-align:right;max-width:280px;line-height:1.5;color:${p.tax.ok?"var(--green)":"var(--red)"}">${p.tax.ok?"✓":"⚠"} ${p.tax.msg}</div></div>`).join("");
+  document.getElementById("taxRules").innerHTML=["US dividends outside RRSP: 15% withholding tax (Canada-US treaty waives this inside RRSP)","Canadian dividends: eligible for dividend tax credit — very efficient in Taxable accounts","GIC interest: 100% taxable income — fill TFSA first before putting GICs in taxable accounts","Capital gains: 50% inclusion rate (2/3 above $250K after 2024 budget) — use TFSA for highest gainers","TFSA: no tax on growth, dividends, or withdrawals — prioritize highest-growth assets here","RRSP: tax deducted on contribution, taxable on withdrawal — ideal for high-income deferral years"].map(r=>`<div style="padding:10px;background:var(--bg3);border-radius:7px;font-size:12px;color:var(--text2);line-height:1.6">· ${r}</div>`).join("");
+}
+
+function rAction(d){
+  const buys=d.en.filter(p=>p.sig.includes("BUY")),holds=d.en.filter(p=>p.sig==="HOLD"),reds=d.en.filter(p=>p.sig==="REDUCE"),warn=d.en.filter(p=>!p.tax.ok);
+  const ac=(title,items,cv,empty)=>`<div class="card"><div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:${cv};margin-bottom:12px">${title} (${items.length})</div>${items.length?items.map(p=>`<div class="irow"><span style="font-weight:500">${p.ticker}</span><span class="${p.cls}">${p.sig}</span></div>`).join(""):`<p style="font-size:12px;color:var(--text3)">${empty}</p>`}</div>`;
+  document.getElementById("actSum").innerHTML=[ac("Buy / add",buys,"var(--green)","No buys triggered"),ac("Hold",holds,"var(--amber)","No holds"),ac("Reduce",reds,"var(--red)","None needed")].join("");
+  const enb=d.en.find(p=>p.ticker==="ENB.TO");
+  const steps=[
+    {dy:"Day 1–3",    act:"Collect GIC monthly payout",               det:`~$${Math.round(d.gicInc)} this month — accumulate until ≥ $5,000`},
+    {dy:"Day 3–5",    act:"Check ENB yield trigger",                   det:`Current yield: ${enb?.yld?.toFixed(2)||"—"}% — Signal: ${enb?.sig||"—"}`},
+    {dy:"Day 3–5",    act:"Check Nasdaq drawdown",                     det:`Currently ${nqDraw.toFixed(1)}% from 6-month high`},
+    {dy:"Day 5",      act:"Deploy cash if triggers are hit",           det:"Never leave monthly payout idle for more than 5 days"},
+    {dy:"Monthly",    act:"Review allocation vs targets",              det:"Rebalance if any bucket drifts >5% from target"},
+    {dy:"Quarterly",  act:"Review tax placement efficiency",           det:"Check if assets should migrate between TFSA / RRSP / Taxable"},
+    {dy:"On rate hike","act":"Increase monthly payout reinvestment",   det:"Each $"+Math.round(d.gicInc)+" payout now earns more — compounding accelerates"},
+    {dy:"On ENB dip", act:"Deploy opportunity fund per zone",          det:"Use yield zones on Signals tab — wait for Zone 2+ (yield ≥ 5.8%)"},
+  ];
+  document.getElementById("mPlan").innerHTML=steps.map(s=>`<div class="astep"><div class="astep-day">${s.dy}</div><div><div class="astep-title">${s.act}</div><div class="astep-sub">${s.det}</div></div></div>`).join("");
+  document.getElementById("taxActAlert").innerHTML=warn.length?`<div class="card" style="border-color:rgba(239,68,68,0.3);margin-bottom:14px"><div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:var(--red);margin-bottom:10px">⚠ Pending tax optimizations (${warn.length})</div>${warn.map(p=>`<div style="padding:9px;background:var(--red2);border-radius:7px;margin-bottom:6px;font-size:12px"><strong>${p.ticker}</strong> (${p.acct}): ${p.tax.msg}</div>`).join("")}</div>`:`<div style="padding:10px;font-size:12px;color:var(--green);margin-bottom:14px">✓ All holdings are in tax-optimal accounts</div>`;
+}
+
+function showEmail(){
+  const d=compute(),enb=d.en.find(p=>p.ticker==="ENB.TO"),dt=new Date().toLocaleDateString("en-CA");
+  const buys=d.en.filter(p=>p.sig.includes("BUY")).map(p=>`  • ${p.ticker}: ${p.sig}`).join("\n")||"  None triggered";
+  const holds=d.en.filter(p=>p.sig==="HOLD").map(p=>`  • ${p.ticker}`).join("\n")||"  None";
+  const reds=d.en.filter(p=>p.sig==="REDUCE").map(p=>`  • ${p.ticker}`).join("\n")||"  None";
+  document.getElementById("emailTxt").textContent=`Subject: Daily Investment Signals — ${dt}\n\nPORTFOLIO SUMMARY\n${"─".repeat(40)}\nTotal value:         $${fmt(d.tv)}\nTotal profit:       +$${fmt(d.tp)} (${(d.tp/d.tc*100).toFixed(1)}%)\nMonthly GIC income:  $${Math.round(d.gicInc)}/month\n\nENB SIGNAL\n${"─".repeat(40)}\nPrice:   $${enb?.price.toFixed(2)}\nYield:   ${enb?.yld?.toFixed(2)}%\nSignal:  ${enb?.sig}\n\nNASDAQ\n${"─".repeat(40)}\nDrawdown: ${nqDraw.toFixed(1)}% from 6-month high\nRegime:   ${regime}\n\nTODAY'S ACTIONS\n${"─".repeat(40)}\nBUY:\n${buys}\n\nHOLD:\n${holds}\n\nREDUCE:\n${reds}\n\nGIC INCOME\n${"─".repeat(40)}\nMonthly payout: $${Math.round(d.gicInc)}\nAction: reinvest or deploy into stocks on signal\n\n${"─".repeat(40)}\nRules-based system. Not financial advice.`;
+  document.getElementById("emailSection").style.display="block";
+  sw("action",document.querySelectorAll(".nav-btn")[5]);
+  document.getElementById("emailSection").scrollIntoView({behavior:"smooth"});
+}
+
+async function doRefresh(){
+  if(!apiKey){openKeyModal();return;}
+  const btn=document.getElementById("rfBtn");
+  btn.textContent="Fetching...";btn.disabled=true;
+  try{
+    const tickers=PORTFOLIO.map(p=>p.ticker).join(", ");
+    const prompt=`Search for the current market prices of these securities: ${tickers}. Also find: ENB.TO annual dividend TTM, QQQ current drawdown from its 6-month high as a negative percentage (e.g. -3.5), and whether SPY is currently above its 50-day moving average (reply "BULL" or "BEAR"). Reply with ONLY valid JSON and nothing else:\n{"prices":{"ENB.TO":72.5,"RY.TO":175,"FTS.TO":60,"NVDA":120,"MSFT":415,"GOOGL":185},"enb_annual_dividend":3.77,"nasdaq_drawdown_pct":-3.2,"regime":"BULL"}`;
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,tools:[{type:"web_search_20250305",name:"web_search"}],messages:[{role:"user",content:prompt}]})});
+    if(!res.ok){const err=await res.json();throw new Error(err.error?.message||"API error "+res.status);}
+    const data=await res.json();
+    const txt=data.content.filter(c=>c.type==="text").map(c=>c.text).join("");
+    const match=txt.match(/\{[\s\S]*?\}/);
+    if(match){
+      const p=JSON.parse(match[0]);
+      PORTFOLIO=PORTFOLIO.map(s=>({...s,price:p.prices?.[s.ticker]??s.price,...(s.ticker==="ENB.TO"&&p.enb_annual_dividend?{enbDiv:p.enb_annual_dividend}:{})}));
+      if(p.nasdaq_drawdown_pct!==undefined)nqDraw=p.nasdaq_drawdown_pct;
+      if(p.regime)regime=p.regime;
+      document.getElementById("lastUpd").textContent="Live data · updated "+new Date().toLocaleTimeString("en-CA");
+      renderAll();
+    }
+  }catch(e){document.getElementById("lastUpd").textContent="Refresh failed: "+e.message;}
+  btn.textContent="↻ Refresh live data";btn.disabled=false;
+}
+
+function openKeyModal(){document.getElementById("keyModal").style.display="flex";}
+function closeKeyModal(){document.getElementById("keyModal").style.display="none";}
+function saveKey(){
+  const k=document.getElementById("keyInput").value.trim();
+  if(!k.startsWith("sk-ant-")){alert("Key should start with sk-ant-");return;}
+  apiKey=k;
+  document.getElementById("keyModal").style.display="none";
+  document.getElementById("apiDot").classList.add("ok");
+  document.getElementById("apiStatusText").textContent="API key set";
+  document.getElementById("lastUpd").textContent="API key saved — press Refresh to fetch live data";
+}
+document.getElementById("keyModal").addEventListener("click",function(e){if(e.target===this)closeKeyModal();});
+
+const panelMap={overview:"pov",portfolio:"ppf",signals:"psig",gic:"pgic",tax:"ptax",action:"pact"};
+function sw(id,btn){
+  Object.values(panelMap).forEach(p=>{const el=document.getElementById(p);if(el)el.classList.remove("active");});
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  const panel=document.getElementById(panelMap[id]);
+  if(panel)panel.classList.add("active");
+  if(btn)btn.classList.add("active");
+  document.getElementById("emailSection").style.display="none";
+}
+
+renderAll();
+</script>
+</body>
+</html>

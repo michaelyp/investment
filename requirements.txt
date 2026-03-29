@@ -1,0 +1,5 @@
+streamlit>=1.18.0
+yfinance
+numpy>=1.24,<2
+pandas
+altair<5
